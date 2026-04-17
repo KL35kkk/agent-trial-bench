@@ -1,58 +1,108 @@
-# DAB Evaluation
+# Agent Trial Bench
 
-**DAB (Decentralized Agent Benchmark)** is a **production-grade Agent Evaluation Pipeline** designed specifically for **Web3 agents**. It goes beyond simple Q&A scoring — it's a full evaluation infrastructure that continuously controls agent quality, cost, and risk across iterative development cycles.
+**Agent Trial Bench** (`agent_trial_bench`, CLI `atb`) is a **production-grade, domain-agnostic evaluation pipeline for AI agents**.  It goes beyond "did the answer look right?" – it's a full evaluation infrastructure that continuously controls agent quality, cost, and risk across iterative development cycles.
+
+The core is **fully domain-agnostic**: the same evaluators, graders and CI gate work for research agents, reasoning agents, coding agents, tool-using agents, customer-support agents, and so on.  Vertical-specific knowledge (format validators, trusted sources, expected tools, scoring vocabulary) lives entirely in pluggable **`DomainPlugin`** components.  Two plugins ship out of the box:
+
+- `general` – URLs, emails, ISO dates, UUIDs, JSON, common research/coding/reasoning tool patterns, general-purpose trusted sources (Wikipedia, arXiv, Reuters, GitHub, …)
+- `web3`    – Ethereum addresses, tx hashes, ENS; `onchain_retrieval` / `defi_analysis` tool patterns; Etherscan / DefiLlama / Dune trusted sources
+
+Add a new vertical (medical, legal, e-commerce, robotics …) without forking the core – just register a `DomainPlugin`.
 
 ## What This Is (And What It Isn't)
 
 | Old thinking | Production thinking |
 |---|---|
-| "Test good or not" | "Stabilise quality, cost, and risk during continuous iteration" |
+| "Test good or not" | Stabilise quality, cost, and risk during continuous iteration |
 | Score a single answer | Evaluate trajectory + outcome across N trials |
 | Run once manually | Regression detection + CI/CD gate |
 | Black-box agent call | Full trace: thought → tool call → observation → state |
+| "Built for X vertical" | Domain-pluggable: `general` + `web3` + your own |
 
 ---
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────┐
-│           Task Dataset Hub               │
-│  Gold (human) / Synthetic / Production   │
-└─────────────────┬────────────────────────┘
-                  │
-┌─────────────────▼────────────────────────┐
-│          Scenario Generator              │
-│  tool_failure / missing_info /           │
-│  conflicting / price_change / redirect   │
-└─────────────────┬────────────────────────┘
-                  │
-┌─────────────────▼────────────────────────┐
-│        Agent Runner  (Multi-Trial)       │
-│  Trajectory · Outcome · TrackedMetrics   │
-└────────┬──────────────┬──────────────────┘
-         │              │
-┌────────▼────┐  ┌──────▼──────────────────┐
-│  4 Graders  │  │     Metrics System       │
-│ deterministic│  │ quality · efficiency     │
-│ llm_rubric  │  │ cost · stability ·       │
-│ state_check │  │ robustness               │
-│ tool_calls  │  └──────┬──────────────────┘
-└────────┬────┘         │
-         └──────┬───────┘
-                │
-┌───────────────▼──────────────────────────┐
-│              Analyzer                    │
-│  Failure Clustering · Regression Diff    │
-│  Root Cause Attribution                  │
-└───────────────┬──────────────────────────┘
-                │
-┌───────────────▼──────────────────────────┐
-│            CI / CD Gate                  │
-│  success_rate ≥ 92% · cost Δ ≤ 5%       │
-│  no new failure modes  →  Pass / Fail    │
-└──────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    Domain Plugins                        │
+│    general (URLs, research, reasoning, coding…)          │
+│    web3    (address, tx_hash, etherscan, defi…)          │
+│    your_vertical (custom validators / tools / sources)   │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────┐
+│                 Task Dataset Hub                         │
+│         Gold (human) / Synthetic / Production            │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────┐
+│                 Scenario Generator                       │
+│    tool_failure · missing_info · conflicting ·           │
+│    price_change · user_redirect                          │
+└──────────────────────────┬──────────────────────────────┘
+                           │
+┌──────────────────────────▼──────────────────────────────┐
+│              Agent Runner  (Multi-Trial)                 │
+│      Trajectory · Outcome · TrackedMetrics               │
+└───────────────┬──────────────────┬───────────────────────┘
+                │                  │
+┌───────────────▼──────┐  ┌────────▼────────────────────┐
+│     4 Graders        │  │     Metrics System           │
+│  deterministic_tests │  │  quality · efficiency        │
+│  llm_rubric          │  │  cost    · stability         │
+│  state_check         │  │  robustness                  │
+│  tool_calls          │  └────────┬────────────────────┘
+└───────────────┬──────┘           │
+                └────────┬─────────┘
+                         │
+┌────────────────────────▼────────────────────────────────┐
+│                    Analyzer                              │
+│   Failure Clustering · Regression Diff                   │
+│   Root Cause Attribution                                 │
+└────────────────────────┬────────────────────────────────┘
+                         │
+┌────────────────────────▼────────────────────────────────┐
+│                   CI / CD Gate                           │
+│   success_rate ≥ threshold · cost Δ ≤ budget             │
+│   no new failure modes  →  Pass / Fail                   │
+└─────────────────────────────────────────────────────────┘
 ```
+
+---
+
+## Domain Plugin System
+
+Every piece of vertical-specific knowledge – format validators, trusted-source allowlists, expected tool patterns, scoring calibrations, technical vocabulary – lives in a `DomainPlugin`.  Multiple plugins can be active at the same time; their knowledge is merged on lookup so a single grader instance works across all of them.
+
+Built-in plugins:
+
+| Plugin | Provides |
+|---|---|
+| `general` | `url` / `email` / `iso_date` / `uuid` / `integer` / `float` / `phone` / `json` validators · tool patterns for `fact_qa`, `research`, `reasoning`, `coding`, `tool_use` · trusted sources (Wikipedia, arXiv, Reuters, GitHub, …) |
+| `web3` | `address` / `tx_hash` / `ens` / `bytes32` validators · tool patterns for `onchain_retrieval`, `defi_analysis`, `web_onchain_retrieval` · trusted sources (Etherscan family, DefiLlama, Dune, Messari, …) · hex-address normalisation |
+
+Register your own vertical without modifying the core:
+
+```python
+from agent_trial_bench import DomainPlugin, register_domain
+
+class MedicalDomain(DomainPlugin):
+    name = "medical"
+    validators = {"icd10": lambda s: bool(ICD10_RE.match(s))}
+    trusted_sources = {"pubmed.ncbi.nlm.nih.gov", "who.int", "cdc.gov"}
+    tool_patterns = {
+        "clinical_qa": {
+            "expected_tools": {"pubmed_search", "drug_lookup"},
+            "required_params": ["query"],
+        }
+    }
+    technical_terms = {"diagnosis", "etiology", "contraindication"}
+
+register_domain(MedicalDomain())
+```
+
+All four graders and the scoring system will now transparently understand your domain.
 
 ---
 
@@ -69,30 +119,30 @@ Three-tier task library that prevents evaluation distortion:
 | **Production** | Live traffic replay | Real-world fidelity |
 
 ```python
-from dab_eval import TaskHub, TaskTier
+from agent_trial_bench import TaskHub, TaskTier, HubTask
 
 hub = TaskHub(seed=42)
-hub.load_gold("data/benchmark.csv")          # 100+ Web3 benchmark tasks
-hub.load_dmind("data/dmind/dmind_objective.csv")  # 3000+ MC questions
+hub.add(HubTask(task_id="q1", question="...", expected_answer="...",
+                category="fact_qa", tier=TaskTier.GOLD))
 
-# 50% gold / 30% synthetic / 20% production, with filters
-batch = hub.sample(100, category_filter="onchain_retrieval")
+# filtered sampling
+batch = hub.sample(100, category_filter="research")
 
-# Stream by tier
 for task in hub.iter_tier(TaskTier.GOLD):
     ...
 ```
+
+> Full CSV / DMind loaders are on the roadmap; the built-in `TaskHub` currently provides basic add/sample/iterate over in-memory tasks.
 
 ### Scenario Generator
 
 Tests not just *capability* but *resilience under chaos*:
 
 ```python
-from dab_eval import ScenarioGenerator, Perturbation
+from agent_trial_bench import ScenarioGenerator, Perturbation
 
 gen = ScenarioGenerator(seed=42)
 
-# Single scenario
 scenario = gen.generate(task, [
     Perturbation.TOOL_FAILURE,   # API timeout / HTTP error / rate limit
     Perturbation.MISSING_INFO,   # Remove a context key
@@ -101,18 +151,18 @@ scenario = gen.generate(task, [
     Perturbation.USER_REDIRECT,  # User changes their question
 ])
 
-# All combinations up to 2 perturbations
 scenarios = gen.generate_all_combinations(task, max_combinations=10)
 ```
+
+The tool-failure perturbation consults the domain registry so it injects failures into tools that are actually relevant for the task's category.
 
 ### Agent Runner + Multi-Trial
 
 Every task runs N times to handle non-determinism:
 
 ```python
-from dab_eval import MultiTrialRunner
+from agent_trial_bench import MultiTrialRunner
 
-# run_fn: async (task, trial_id) -> Trial
 runner = MultiTrialRunner(run_fn, num_trials=3, variance_threshold=0.15)
 result = await runner.run(task)
 
@@ -120,20 +170,22 @@ print(result.mean_score)       # 0.87
 print(result.variance)         # 0.02
 print(result.worst_case_score) # 0.83
 print(result.pass_at_k)        # {1: 0.83, 2: 0.97, 3: 1.0}
-print(result.is_unstable)      # False  (variance < 0.15)
+print(result.is_unstable)      # False
 ```
 
 ### 4 Graders (run in parallel per trial)
 
 | Grader | Type | Evaluates |
 |---|---|---|
-| `DeterministicTestsGrader` | Code-based | Outcome: exact match, regex, MC options, Web3 address format |
+| `DeterministicTestsGrader` | Code-based | Outcome: exact match, regex, MC options, domain-aware format checks (`url`, `email`, `iso_date`, `address`, `tx_hash`, …) |
 | `LLMRubricGrader` | Model-based | Trajectory + Outcome: rubric scoring |
-| `StateCheckGrader` | Code-based | Outcome: source reliability, state consistency |
-| `ToolCallsGrader` | Code-based | Trajectory: success rate, relevance, loop detection |
+| `StateCheckGrader` | Code-based | Outcome: trusted-source reliability, state ↔ answer consistency, declarative `state_format_checks` |
+| `ToolCallsGrader` | Code-based | Trajectory: success rate, tool-selection relevance, redundancy, loop detection, parameter well-formedness |
+
+Which formats / tools / trusted sources apply is driven entirely by the registered `DomainPlugin`s plus per-task `context` fields – the graders themselves contain **no vertical-specific code**.
 
 ```python
-from dab_eval import build_grader
+from agent_trial_bench import build_grader
 
 grader = build_grader("tool_calls", config={"max_tool_calls": 10})
 result = await grader.grade(outcome, trajectory, task)
@@ -145,40 +197,37 @@ print(result.assertions) # [{"name": "tool_success_rate", "passed": True, "value
 
 ### Tool Mock Registry
 
-Deterministic, replayable tool execution — no real API calls needed:
+Deterministic, replayable tool execution – no real API calls needed.  Tool mocks are grouped by domain so you only load what you need:
 
 ```python
-from dab_eval import MockToolRegistry, ToolFailureMode, register_default_tools
+from agent_trial_bench import (
+    MockToolRegistry, ToolFailureMode,
+    register_general_tools,   # web_search, document_fetch, calculator, python_exec, …
+    register_web3_tools,      # blockchain_query, contract_read, etherscan_api, price_query, …
+    register_default_tools,   # convenience = general + web3
+)
 
 registry = MockToolRegistry(cache_dir="output/tool_cache")
-register_default_tools(registry)  # web_search, blockchain_query, contract_read, ...
+register_general_tools(registry)
+register_web3_tools(registry)
+# or: register_default_tools(registry, include_web3=False)   # general only
 
-# Inject a failure for the next call
-registry.inject_failure("blockchain_query", ToolFailureMode.TIMEOUT)
-
-# All calls are cached by (tool_name, args_hash) → full replay capability
-result = await registry.call("web_search", {"query": "bitcoin ETF approval"})
+registry.inject_failure("web_search", ToolFailureMode.TIMEOUT)
+result = await registry.call("web_search", {"query": "latest AI research"})
 ```
 
 ### Analyzer
 
 ```python
-from dab_eval import FailureClassifier, RegressionDetector, RootCauseAnalyzer
+from agent_trial_bench import FailureClassifier, RegressionDetector, RootCauseAnalyzer
 
-# Classify why each trial failed
 classifier = FailureClassifier()
 failures = classifier.classify_batch(trials)
-# → [ClassifiedFailure(category=FailureCategory.TOOL_ERROR, confidence=0.85), ...]
 
-# Compare two runs (detect regressions)
 detector = RegressionDetector(regression_threshold=0.05)
 report = detector.compare(baseline_snapshots, current_snapshots)
 print(report.summary_text())
-# Score delta: -0.02
-# Regressions: 2   task_042: 0.91 → 0.78 (-0.13)
-# New failure modes: []
 
-# Root cause percentage breakdown
 analyzer = RootCauseAnalyzer()
 rc = analyzer.analyse_from_trials(trials, total_trials=300)
 print(rc.summary_text())
@@ -190,26 +239,25 @@ print(rc.summary_text())
 ### CI/CD Gate
 
 ```python
-from dab_eval import CIGate, GateConfig
+from agent_trial_bench import CIGate, GateConfig
 
 gate = CIGate(GateConfig(
-    min_success_rate=0.92,       # ≥ 92% tasks must pass
-    max_cost_increase_pct=5.0,   # cost must not grow > 5% vs baseline
-    max_regressions=0,           # zero regressions allowed
-    max_new_failure_modes=0,     # no new failure categories
+    min_success_rate=0.92,
+    max_cost_increase_pct=5.0,
+    max_regressions=0,
+    max_new_failure_modes=0,
 ))
 
 result = gate.evaluate(current_results, baseline_results)
-
 if not result.passed:
-    print(result.report)  # full breakdown
-    sys.exit(1)           # blocks deployment
+    print(result.report)
+    sys.exit(1)
 ```
 
 **CLI** (for GitHub Actions / Jenkins):
 
 ```bash
-python -m dab_eval.ci_gate \
+python -m agent_trial_bench.ci_gate \
   --current  output/results.json \
   --baseline output/baseline.json \
   --min-success-rate 0.92 \
@@ -221,47 +269,55 @@ python -m dab_eval.ci_gate \
 
 ## Quick Start
 
-### Prerequisites
+### Install
 
 ```bash
 pip install -r requirements.txt
+# or, once published:
+# pip install agent-trial-bench
 ```
 
-### Run the Mock Pipeline (No Agent Required)
+### Run the mock pipeline (no real agent required)
 
 ```bash
-python examples/mock_accuracy_run.py
+python examples/general_usage.py     # domain-agnostic QA grading demo
+python examples/mock_accuracy_run.py  # full pipeline with the bundled Web3 benchmark
 ```
 
-### Evaluate Your Agent (v1 API — backward compatible)
+### Evaluate a general-purpose agent
 
 ```python
 import asyncio, os
-from dab_eval import DABEvaluator, EvaluationConfig, LLMConfig, AgentMetadata, TaskCategory
+from agent_trial_bench import (
+    AgentTrialBench, EvaluationConfig, LLMConfig,
+    AgentMetadata, TaskCategory,
+)
 
 async def main():
     config = EvaluationConfig(
-        llm_config=LLMConfig(
-            model="gpt-4",
-            api_key=os.environ["OPENAI_API_KEY"],
-        )
+        llm_config=LLMConfig(model="gpt-4", api_key=os.environ["OPENAI_API_KEY"]),
     )
-    evaluator = DABEvaluator(config)
-    agent = AgentMetadata(url="http://localhost:8002",
-                          capabilities=[TaskCategory.WEB_RETRIEVAL])
+    evaluator = AgentTrialBench(config)
+
+    agent = AgentMetadata(
+        url="http://localhost:8002",
+        capabilities=[TaskCategory.FACT_QA],
+    )
 
     result = await evaluator.evaluate_agent(
-        question="What date did the SEC approve Bitcoin spot ETF?",
+        question="Who proposed the Transformer architecture and in which year?",
         agent_metadata=agent,
-        category=TaskCategory.WEB_RETRIEVAL,
-        expected_answer="2024/1/10",
+        category=TaskCategory.FACT_QA,
+        expected_answer="Vaswani et al., 2017",
     )
     print(f"Score: {result.evaluation_score:.2f}")
 
 asyncio.run(main())
 ```
 
-### Full Dataset Evaluation
+Swap in the Web3 vertical by changing `category=TaskCategory.ONCHAIN_RETRIEVAL` and pointing at a Web3 agent – everything else stays the same.
+
+### Full dataset evaluation
 
 ```python
 results = await evaluator.evaluate_agent_with_dataset(
@@ -274,101 +330,110 @@ print(f"Success rate: {summary['overall']['success_rate']:.2%}")
 
 ---
 
-## Dataset
+## Task Categories
 
-### Benchmark (`data/benchmark.csv`)
-
-100 Web3 tasks across three categories:
+Generic, domain-agnostic categories always available:
 
 | Category | Description |
 |---|---|
+| `general` | Unlabelled / mixed tasks – safe default |
+| `fact_qa` | Single-answer factual questions |
+| `research` | Open-ended multi-source investigation |
+| `reasoning` | Math / logic / multi-step deduction |
+| `tool_use` | Success depends on invoking the right tools |
+| `coding` | Code generation / refactoring / debugging |
+| `conversational` | Free-form dialogue / assistant behaviour |
+| `multi_step` | Long-horizon planning with intermediate goals |
 | `web_retrieval` | Fetch / reason over traditional web sources |
+
+Web3-specific categories (provided by the `web3` plugin):
+
+| Category | Description |
+|---|---|
 | `onchain_retrieval` | Query blockchain data directly |
 | `web_onchain_retrieval` | Hybrid: web + chain verification |
 
-CSV columns: `id`, `question`, `answer`, `category`, `task_type`, `evaluation_method`, `difficulty` (optional), `ground_truth_score` (optional).
+CSV columns expected by the bundled loader: `id`, `question`, `answer`, `category`, `task_type`, `evaluation_method`, `difficulty` (optional), `ground_truth_score` (optional).
 
-### DMind (`data/dmind/`)
+### Bundled Datasets
 
-3 156 multiple-choice questions across 9 Web3 domains: Blockchain Fundamentals, DeFi, NFT, DAO, Security, Smart Contracts, Tokenomics, MEME, Infrastructure.
+- `data/benchmark.csv` – a 100-task Web3 benchmark kept from v1 as a reference vertical
+- `data/dmind/` – 3 156 multiple-choice questions across 9 Web3 domains
 
-```python
-hub.load_dmind("data/dmind/dmind_objective.csv")
-# or by domain
-hub.load_dmind("data/dmind/objective/DeFi.csv", domain="DeFi")
-```
+Both are examples of what a domain-specific dataset looks like; nothing in the core stops you from pointing the pipeline at a totally different dataset.
 
 ---
 
-## Agent Response Schema (v2)
+## Agent Response Schema
 
-To unlock trajectory-based grading (Tool Grader, State Check), agents should return structured JSON:
+To unlock trajectory-based grading (`tool_calls`, `state_check`), agents should return structured JSON:
 
 ```json
 {
-  "answer": "2024/1/10",
+  "answer": "Vaswani et al., 2017",
   "confidence": 0.92,
   "trajectory": {
     "steps": [
       {"step_id": 1, "type": "reasoning", "content": "...", "timestamp": 1704067200.0},
-      {"step_id": 2, "type": "tool_call", "tool_name": "web_search",
-       "tool_input": {"query": "SEC Bitcoin ETF approval date"},
-       "tool_output": {"results": [...]},
+      {"step_id": 2, "type": "tool_call", "tool_name": "arxiv_search",
+       "tool_input": {"query": "Attention is all you need"},
+       "tool_output": {"hits": 1},
        "success": true, "timestamp": 1704067201.5},
-      {"step_id": 3, "type": "reasoning", "content": "Found the date...", "timestamp": 1704067203.0}
+      {"step_id": 3, "type": "reasoning", "content": "Found the paper...", "timestamp": 1704067203.0}
     ],
     "n_turns": 3,
     "total_duration": 3.0
   },
   "state": {
-    "final_answer_source": "web_search",
-    "sources_consulted": ["sec.gov", "reuters.com"]
+    "primary_source": "https://arxiv.org/abs/1706.03762",
+    "sources_consulted": ["arxiv.org", "nature.com"]
   },
-  "tools_used": ["web_search"],
+  "tools_used": ["arxiv_search"],
   "token_usage": {"prompt": 150, "completion": 80, "total": 230}
 }
 ```
 
-Agents that return only `{"answer": "..."}` still work — the framework degrades gracefully to deterministic + LLM grading only.
+Agents that return only `{"answer": "..."}` still work – the framework degrades gracefully to deterministic + LLM grading only.
 
 ---
 
 ## Module Reference
 
-### v2 Data Structures
+### Data Structures
 
 | Class | Description |
 |---|---|
 | `Step` | Single action within a trajectory |
 | `Trajectory` | Full execution trace (steps, counters, loop detection) |
 | `Outcome` | Final answer + state + sources |
-| `TrackedMetrics` | n_turns, n_toolcalls, tokens, latency, cost |
+| `TrackedMetrics` | `n_turns`, `n_toolcalls`, `tokens`, `latency`, `cost` |
 | `GradeResult` | Score + assertions from one grader |
 | `Trial` | One complete run: Trajectory + Outcome + Metrics + GradeResults |
 
 ### Graders
 
 ```python
-from dab_eval import build_grader, GRADER_REGISTRY  # from dab_eval.graders
+from agent_trial_bench import build_grader
 
-grader = build_grader("deterministic_tests", config={"regex_patterns": [r"\d{4}/\d{1,2}/\d{1,2}"]})
+grader = build_grader("deterministic_tests",
+                      config={"regex_patterns": [r"\d{4}-\d{2}-\d{2}"]})
 ```
 
 Available: `deterministic_tests`, `llm_rubric`, `state_check`, `tool_calls`.
 
-### Task Dataset Hub
+### Domains
 
 ```python
-TaskHub(seed=42)
-  .load_gold(path)
-  .load_dmind(path, domain="")
-  .add_synthetic(tasks)
-  .add_production_log(entries)
-  .load_production_jsonl(path)
-  .sample(n, gold_ratio=0.5, synthetic_ratio=0.3, production_ratio=0.2,
-          category_filter=None, difficulty_filter=None, domain_filter=None)
-  .iter_tier(TaskTier.GOLD)
-  .stats()
+from agent_trial_bench import (
+    DomainPlugin, register_domain, get_domain, list_domains,
+)
+from agent_trial_bench.domains import (
+    get_validator, expected_tools_for, all_trusted_sources,
+)
+
+list_domains()                          # ['general', 'web3']
+get_validator("url")("https://...")     # → True / False
+expected_tools_for("fact_qa")           # → {'web_search', 'document_fetch', ...}
 ```
 
 ### Scenario Generator
@@ -401,12 +466,8 @@ FailureClassifier(tool_error_threshold=0.7, pass_threshold=0.6)
 
 RegressionDetector(regression_threshold=0.05)
   .compare(baseline, candidate) -> RegressionReport
-  .snapshots_from_results(results) -> List[TaskSnapshot]
-  .save_snapshot(snapshots, path)
-  .load_snapshot(path) -> List[TaskSnapshot]
 
 RootCauseAnalyzer()
-  .analyse(failures, total_trials) -> RootCauseReport
   .analyse_from_trials(trials, total_trials) -> RootCauseReport
 ```
 
@@ -421,11 +482,9 @@ GateConfig(
     max_regressions=0,
     max_new_failure_modes=0,
     variance_threshold=0.15,
-    unstable_task_limit=None,
 )
 
 CIGate(config).evaluate(current_results, baseline_results) -> GateResult
-# GateResult: passed, blocking_issues, warnings, metrics, regression_report, report
 ```
 
 ---
@@ -434,13 +493,14 @@ CIGate(config).evaluate(current_results, baseline_results) -> GateResult
 
 | File | Description |
 |---|---|
+| `examples/general_usage.py` | End-to-end non-Web3 QA flow with all graders + custom domain plugin |
 | `examples/basic_usage.py` | Single-question evaluation |
 | `examples/batch_evaluation.py` | Batch processing |
 | `examples/config_based_evaluation.py` | Config-file driven evaluation |
 | `examples/enhanced_batch_evaluation.py` | Advanced batch with statistics |
 | `examples/evaluate_accuracy.py` | Evaluation system accuracy analysis |
 | `examples/mock_accuracy_run.py` | Full pipeline offline (no real agent) |
-| `examples/prepare_dmind.py` | Convert DMind dataset to DAB format |
+| `examples/prepare_dmind.py` | Convert DMind dataset to the bundled format |
 
 ---
 
@@ -454,7 +514,18 @@ CIGate(config).evaluate(current_results, baseline_results) -> GateResult
 
 ## Backward Compatibility
 
-v2 is **fully backward compatible**. All v1 APIs (`DABEvaluator`, `evaluate_agent()`, `EvaluationResult`, config classes) continue to work unchanged. The new pipeline modules are additive.
+The v1 legacy imports still work via a lightweight shim:
+
+- `dab_eval.graders.web3_validators` re-exports from `agent_trial_bench.domains.web3` (emits a `DeprecationWarning`)
+- Task-context flags `check_address` / `check_tx_hash` still work alongside the new `check_format` list
+- Web3-only datasets (`category` = `onchain_retrieval` / `web_onchain_retrieval` / `web_retrieval`) run unchanged
+
+New code should prefer:
+
+```python
+from agent_trial_bench import AgentTrialBench          # was DABEvaluator
+from agent_trial_bench.domains import get_validator    # was dab_eval.graders.web3_validators
+```
 
 ---
 
