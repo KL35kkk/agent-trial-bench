@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DAB Evaluation SDK - Config-based Evaluation Example
+Agent Trial Eval - Config-based Evaluation Example
 Demonstrates the new configuration-driven architecture
 """
 
@@ -11,8 +11,8 @@ import sys
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dab_eval import (
-    DABEvaluator,
+from agent_trial_bench import (
+    AgentTrialBench,
     EvaluationConfig,
     AgentMetadata,
     TaskCategory,
@@ -39,7 +39,7 @@ async def config_based_evaluation():
         config.llm_config.api_key = os.environ.get("ARK_API_KEY", "")
     
     # Create evaluator with config
-    evaluator = DABEvaluator(config=config)
+    evaluator = AgentTrialBench(config=config)
     
     # Create agent metadata from config
     agent = AgentMetadata(
@@ -88,7 +88,7 @@ async def config_based_evaluation():
 async def programmatic_config():
     """Example creating config programmatically"""
     
-    from dab_eval import (
+    from agent_trial_bench import (
         LLMConfig,
         AgentConfig,
         DatasetConfig,
@@ -128,7 +128,7 @@ async def programmatic_config():
     )
     
     # Create evaluator
-    evaluator = DABEvaluator(config=config)
+    evaluator = AgentTrialBench(config=config)
     
     # Use evaluator...
     agent = AgentMetadata(

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DAB Evaluation SDK Basic Usage Example
+Agent Trial Eval Basic Usage Example
 """
 
 import asyncio
@@ -10,8 +10,8 @@ import os
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from dab_eval import (
-    DABEvaluator, 
+from agent_trial_bench import (
+    AgentTrialBench, 
     AgentMetadata, 
     TaskCategory, 
     EvaluationMethod,
@@ -54,7 +54,7 @@ async def basic_evaluation_example():
     )
     
     # Create SDK instance
-    evaluator = DABEvaluator(config)
+    evaluator = AgentTrialBench(config)
     
     # Define Agent
     agent = AgentMetadata(
@@ -102,7 +102,7 @@ async def multiple_agents_evaluation_example():
     )
     
     # Create evaluator
-    evaluator = DABEvaluator(config)
+    evaluator = AgentTrialBench(config)
     
     # Define multiple Agents
     agents = [
@@ -156,7 +156,7 @@ async def export_results_example():
     )
     
     # Create evaluator
-    evaluator = DABEvaluator(config)
+    evaluator = AgentTrialBench(config)
     
     # Execute some evaluations
     agent = AgentMetadata(

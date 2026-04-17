@@ -4,7 +4,7 @@ Example script for analyzing evaluation system accuracy
 
 import asyncio
 import json
-from dab_eval.evaluation.accuracy_analysis import EvaluationAccuracyAnalyzer
+from agent_trial_bench.evaluation.accuracy_analysis import EvaluationAccuracyAnalyzer
 
 
 async def main():

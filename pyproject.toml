@@ -3,18 +3,18 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "dab-evaluation"
-version = "1.0.0"
-description = "DAB Evaluation SDK - Web3 Agent Evaluation Framework"
+name = "agent-trial-bench"
+version = "2.1.0"
+description = "Agent Trial Bench – Domain-Agnostic Benchmark for AI Agents (with first-class Web3 support)."
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
-    {name = "DAB Team", email = "dab@example.com"}
+    {name = "Agent Trial Bench Team", email = "dab@example.com"}
 ]
 maintainers = [
-    {name = "DAB Team", email = "dab@example.com"}
+    {name = "Agent Trial Bench Team", email = "dab@example.com"}
 ]
-keywords = ["evaluation", "web3", "agent", "llm", "benchmark", "assessment"]
+keywords = ["evaluation", "agent", "llm", "benchmark", "assessment", "web3", "tool-use", "trajectory"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -60,21 +60,21 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/dab-team/dab-evaluation"
-Documentation = "https://dab-evaluation.readthedocs.io/"
-Repository = "https://github.com/dab-team/dab-evaluation"
-"Bug Tracker" = "https://github.com/dab-team/dab-evaluation/issues"
+Homepage = "https://github.com/dab-team/agent-trial-bench"
+Documentation = "https://agent-trial-bench.readthedocs.io/"
+Repository = "https://github.com/dab-team/agent-trial-bench"
+"Bug Tracker" = "https://github.com/dab-team/agent-trial-bench/issues"
 
 [project.scripts]
-dab-eval = "dab_eval:main"
+atb = "agent_trial_bench:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["dab_eval*", "evaluation*"]
+include = ["agent_trial_bench*", "evaluation*"]
 exclude = ["tests*", "examples*", "output*", "test_*"]
 
 [tool.setuptools.package-data]
-"dab_evaluation" = ["data/*.csv", "examples/*.py"]
+"agent_trial_bench" = ["data/*.csv", "examples/*.py"]
 
 [tool.black]
 line-length = 88

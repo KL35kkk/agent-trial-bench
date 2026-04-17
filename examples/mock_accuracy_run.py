@@ -12,9 +12,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from dab_eval import (  # noqa: E402  (import after sys.path update)
+from agent_trial_bench import (  # noqa: E402  (import after sys.path update)
     load_config,
-    DABEvaluator,
+    AgentTrialBench,
     AgentMetadata,
     TaskCategory,
 )
@@ -54,7 +54,7 @@ async def main():
         work_dir=str(work_dir),
     )
 
-    evaluator = DABEvaluator(config)
+    evaluator = AgentTrialBench(config)
     agent = AgentMetadata(
         url="mock://local-agent",
         capabilities=[TaskCategory.WEB_RETRIEVAL],

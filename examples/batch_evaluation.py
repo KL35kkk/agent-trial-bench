@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DAB Evaluation SDK Batch Evaluation Example
+Agent Trial Eval Batch Evaluation Example
 """
 
 import asyncio
@@ -12,8 +12,8 @@ from typing import List, Dict, Any
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dab_eval import (
-    DABEvaluator, 
+from agent_trial_bench import (
+    AgentTrialBench, 
     AgentMetadata, 
     EvaluationResult, 
     TaskCategory,
@@ -49,7 +49,7 @@ class BatchEvaluator:
             ),
             work_dir="output"
         )
-        self.evaluator = DABEvaluator(config)
+        self.evaluator = AgentTrialBench(config)
         self.results: List[EvaluationResult] = []
     
     async def load_benchmark_data(self, csv_file: str) -> List[Dict[str, Any]]:

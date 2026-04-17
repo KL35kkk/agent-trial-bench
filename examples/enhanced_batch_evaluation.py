@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DAB Evaluation SDK Enhanced Batch Evaluation Example
+Agent Trial Eval Enhanced Batch Evaluation Example
 Supports intelligent evaluation method selection based on task categories
 """
 
@@ -14,8 +14,8 @@ from collections import defaultdict
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from dab_eval import (
-    DABEvaluator, 
+from agent_trial_bench import (
+    AgentTrialBench, 
     AgentMetadata, 
     EvaluationResult,
     EvaluationConfig,
@@ -49,7 +49,7 @@ class EnhancedBatchEvaluator:
                 dataset_config=DatasetConfig(),
                 work_dir="output"
             )
-        self.evaluator = DABEvaluator(config)
+        self.evaluator = AgentTrialBench(config)
         self.results: List[EvaluationResult] = []
         self.category_stats = defaultdict(lambda: {"total": 0, "successful": 0, "failed": 0, "scores": []})
     

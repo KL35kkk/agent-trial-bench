@@ -1,5 +1,5 @@
 """
-Example Python configuration file for DAB Evaluation SDK
+Example Python configuration file for Agent Trial Eval
 Demonstrates separated business and infrastructure configurations
 """
 

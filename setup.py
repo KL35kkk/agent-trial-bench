@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Setup script for dab-evaluation package
+Setup script for agent-trial-bench package
 """
 
 from setuptools import setup, find_packages
@@ -17,14 +17,14 @@ def read_requirements():
         return [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
 setup(
-    name="dab-evaluation",
-    version="1.0.0",
-    author="DAB Team",
+    name="agent-trial-bench",
+    version="2.1.0",
+    author="Agent Trial Bench Team",
     author_email="dab@example.com",
-    description="DAB Evaluation SDK - Web3 Agent Evaluation Framework",
+    description="Agent Trial Bench – Domain-Agnostic Benchmark for AI Agents (with first-class Web3 support).",
     long_description=read_readme(),
     long_description_content_type="text/markdown",
-    url="https://github.com/dab-team/dab-evaluation",
+    url="https://github.com/dab-team/agent-trial-bench",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -57,20 +57,20 @@ setup(
     },
     entry_points={
         "console_scripts": [
-            "dab-eval=dab_eval:main",
+            "atb=agent_trial_bench:main",
         ],
     },
     include_package_data=True,
     package_data={
-        "dab_evaluation": [
+        "agent_trial_bench": [
             "data/*.csv",
             "examples/*.py",
         ],
     },
-    keywords="evaluation, web3, agent, llm, benchmark, assessment",
+    keywords="evaluation, agent, llm, benchmark, assessment, web3, tool-use, trajectory",
     project_urls={
-        "Bug Reports": "https://github.com/dab-team/dab-evaluation/issues",
-        "Source": "https://github.com/dab-team/dab-evaluation",
-        "Documentation": "https://dab-evaluation.readthedocs.io/",
+        "Bug Reports": "https://github.com/dab-team/agent-trial-bench/issues",
+        "Source": "https://github.com/dab-team/agent-trial-bench",
+        "Documentation": "https://agent-trial-bench.readthedocs.io/",
     },
 )
